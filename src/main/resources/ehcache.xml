@@ -1,0 +1,8 @@
+<config xmlns='http://www.ehcache.org/v3'>
+  <cache alias="taskCache">
+    <heap unit="entries">1000</heap>
+    <expiry>
+      <ttl unit="minutes">10</ttl>
+    </expiry>
+  </cache>
+</config>

@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:taskdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate.cache.use_second_level_cache: true
+      hibernate.cache.use_query_cache: true
+      hibernate.cache.region.factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+  cache:
+    jcache:
+      config: classpath:ehcache.xml
+
+# Uncomment for Postgres profile later:
+# ---
+# spring.config.activate.on-profile: postgres
+# spring:
+#   datasource:
+#     url: jdbc:postgresql://localhost:5432/taskdb
+#     username: user
+#     password: pass
