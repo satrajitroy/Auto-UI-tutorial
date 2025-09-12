@@ -1,80 +1,74 @@
 package com.example.taskmanager.service;
 
+import com.example.taskmanager.dto.TaskRequest;
+import com.example.taskmanager.dto.TaskResponse;
 import com.example.taskmanager.dto.TaskUpdateRequest;
 import com.example.taskmanager.entity.Status;
 import com.example.taskmanager.entity.Task;
 import com.example.taskmanager.repository.TaskRepository;
 import com.example.taskmanager.util.TaskMapper;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.dao.OptimisticLockingFailureException;
+import jakarta.validation.Valid;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @Service
 @Transactional
 public class TaskService {
 
-    private final TaskRepository taskRepository;
-    private final AuditRepository auditRepository;
+    private final TaskRepository taskRepo;
 
-    public TaskService(TaskRepository taskRepository, AuditRepository auditRepository) {
-        this.taskRepository = taskRepository;
-        this.auditRepository = auditRepository;
+    public TaskService(TaskRepository taskRepo) {
+        this.taskRepo = taskRepo;
     }
 
-    @Cacheable(value = "taskCache", key = "#id")
-    @Transactional(readOnly = true)
-    public Task getById(Long id) {
-        return taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found: " + id));
+    // -------- 1) list(Status) -> List<TaskResponse> --------
+    public List<TaskResponse> list(@Nullable Status status) {
+        List<Task> entities = (status == null)
+                ? taskRepo.findAll()
+                : taskRepo.findByStatus(status); // add this repo method if missing
+        return entities.stream().map(this::toResponse).toList();
     }
 
-    public Task create(Task task) {
-        task.setId(null);
-        Task saved = taskRepository.save(task);
-        auditRepository.log("Created task id=" + saved.getId());
-        return saved;
+    // -------- 2) get(id) -> TaskResponse --------
+    public TaskResponse get(long id) {
+        Task t = taskRepo.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Task " + id + " not found"));
+        return toResponse(t);
     }
 
-    @CachePut(value = "taskCache", key = "#id")
-    public Task update(Long id, TaskUpdateRequest req) {
-        Task existing = getById(id);
-
-        if (req.getVersion() != null && !req.getVersion().equals(existing.getVersion())) {
-            throw new OptimisticLockingFailureException(
-                "Version mismatch for Task id=" + id + ": expected " + existing.getVersion() + ", got " + req.getVersion()
-            );
-        }
-
-        TaskMapper.apply(req, existing);
-        Task saved = taskRepository.save(existing);
-        auditRepository.log("Updated task id=" + saved.getId());
-        return saved;
+    // -------- 3) create(TaskRequest) -> long (id) --------
+    public Long create(@Valid TaskRequest req) {
+        Task entity = fromCreate(req);
+        Task saved = taskRepo.save(entity);
+        return saved.getId();
     }
 
-    @CacheEvict(value = "taskCache", key = "#id")
-    public void delete(Long id) {
-        taskRepository.deleteById(id);
-        auditRepository.log("Deleted task id=" + id);
+    // (Optional) keep/update existing methods; add these helpers:
+
+    private TaskResponse toResponse(Task t) {
+        return TaskMapper.toResponse(t);
     }
 
-    @Transactional(readOnly = true)
-    public List<Task> findByStatus(Status status) {
-        return taskRepository.findByStatus(status);
+    private Task fromCreate(TaskRequest req) {
+        return TaskMapper.toEntity(req);
     }
 
-    @Transactional(readOnly = true)
-    public List<Task> findAll() {
-        return taskRepository.findAll();
+    // If you also need update(id, TaskUpdateRequest):
+    public void update(long id, @Valid TaskUpdateRequest req) {
+        Task t = taskRepo.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Task " + id + " not found"));
+        if (req.getTitle() != null) t.setTitle(req.getTitle());
+        if (req.getDescription() != null) t.setDescription(req.getDescription());
+        if (req.getStatus() != null) t.setStatus(req.getStatus());
+        if (req.getDeadline() != null) t.setDeadline(req.getDeadline());
+        // If you manually manage version/updatedAt, set them here
+        taskRepo.save(t);
     }
 
-    @Transactional(readOnly = true)
-    public List<Task> overdue(LocalDate today) {
-        return taskRepository.findOverdue(today);
+    public void delete(long id) {
+        taskRepo.deleteById(id);
     }
 }

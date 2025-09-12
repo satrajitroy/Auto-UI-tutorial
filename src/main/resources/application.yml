@@ -23,3 +23,7 @@ spring:
 #     url: jdbc:postgresql://localhost:5432/taskdb
 #     username: user
 #     password: pass
+
+springdoc:
+  api-docs:
+    path: /api.json
