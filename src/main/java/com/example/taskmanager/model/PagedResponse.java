@@ -1,8 +1,11 @@
 package com.example.taskmanager.model;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Getter;
+
 import java.util.List;
 
+@Getter
 public class PagedResponse<T> {
     private List<T> items;
     private int page;
@@ -13,11 +16,6 @@ public class PagedResponse<T> {
     public PagedResponse(List<T> items, int page, int size, long total) {
         this.items = items; this.page = page; this.size = size; this.total = total;
     }
-
-    public List<T> getItems() { return items; }
-    public int getPage() { return page; }
-    public int getSize() { return size; }
-    public long getTotal() { return total; }
 
     public void setItems(List<T> items) { this.items = items; }
     public void setPage(int page) { this.page = page; }
